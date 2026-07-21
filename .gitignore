@@ -1,0 +1,22 @@
+# Variables reales y credenciales
+.env
+
+# Logs y archivos temporales
+logs/
+*.log
+
+# Datos locales de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos temporales de editores
+*.swp
+*.tmp
+
+# Carpetas innecesarias
+node_modules/
+
+# Datos locales de Docker o volúmenes si existieran en carpeta
+docker-data/
+mysql_data/
+n8n_data/

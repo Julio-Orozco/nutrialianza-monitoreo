@@ -1,0 +1,10 @@
+
+filebeat.inputs:
+  - type: filestream
+    id: nginx-logs
+    enabled: true
+    paths:
+      - /var/log/nginx/*.log
+
+output.console:
+  pretty: true

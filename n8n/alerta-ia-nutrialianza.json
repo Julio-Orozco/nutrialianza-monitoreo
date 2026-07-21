@@ -1,0 +1,180 @@
+{
+  "name": "Alerta IA NutriAlianza - Nivel Base",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "6654883c-b5b9-4d29-b8fd-18df2368967d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "up"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "5926bfb7-6da1-4a57-97dd-3ec44941980d",
+      "name": "Consultar Prometheus"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $json.data?.result || [];\n \nlet mensajeMetricas = \"\";\n \nif (results.length === 0) {\n  mensajeMetricas = \"No se recibieron métricas desde Prometheus.\";\n} else {\n  mensajeMetricas = results.map(item => {\n    const job = item.metric?.job || \"servicio desconocido\";\n    const instance = item.metric?.instance || \"instancia desconocida\";\n    const value = item.value?.[1] || \"sin valor\";\n    return `Servicio: ${job} | Instancia: ${instance} | Estado: ${value}`;\n  }).join(\"\\n\");\n}\n \nreturn [\n  {\n    json: {\n      metricas: mensajeMetricas,\n      prompt: `Actúa como analista de infraestructura de NutriAlianza S.A.\n \nPrometheus devolvió el siguiente estado de servicios:\n \n${mensajeMetricas}\n \nGenera una alerta breve para el equipo de TI con:\n1. Estado general del sistema\n2. Posible interpretación técnica\n3. Recomendación inicial\n \nResponde en español, de forma clara y profesional.`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        0
+      ],
+      "id": "7599938a-98d6-4767-ae9e-30bbce9ed612",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Genera una alerta breve para NutriAlianza S.A. indicando que Prometheus detectó servicios activos.\"\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        304,
+        0
+      ],
+      "id": "4de0ddc2-d6fe-4979-9fb6-ec5f9c13d264",
+      "name": "Groq"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "text",
+              "value": "=🚨 Alerta NutriAlianza S.A.   {{$json.choices[0].message.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        0
+      ],
+      "id": "7de45f19-62ce-4495-90f1-b42230fc65df",
+      "name": "Enviar Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Consultar Prometheus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Prometheus": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "84e56ebc-4370-4767-a5d1-44d580597137",
+  "meta": {
+    "instanceId": "efd8b7754f83b488278551045d387462c70c7e221e8ba9609c288c214a81ce97"
+  },
+  "nodeGroups": [],
+  "id": "4j619vArKTgx0cMY",
+  "tags": []
+}
