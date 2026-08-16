@@ -1,0 +1,180 @@
+{
+  "name": "Alerta IA NutriAlianza - Escenario 3 Caida Nginx",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "77d63c60-3190-46b8-8aea-f1f70c2068ff",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "max(nginx_up) or vector(0)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "3a5d4b7a-ea88-4af0-95f5-5b314073cd58",
+      "name": "Consultar Prometheus"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $json.data?.result || [];\n \nif (results.length === 0) {\n  return [];\n}\n \nconst nginxUp = parseFloat(\n  results[0].value?.[1] || \"0\"\n);\n \n// Nginx está funcionando: no generar alerta\nif (nginxUp > 0) {\n  return [];\n}\n \nconst prompt = `\nActúa como analista de infraestructura de NutriAlianza S.A.\n \nPrometheus detectó que el servidor web Nginx dejó de estar disponible.\n \nDATOS DEL INCIDENTE:\n- Servicio afectado: Nginx\n- Tipo de incidente: Caída del servicio web\n- Estado detectado por Prometheus: nginx_up = ${nginxUp}\n- Health check esperado: sin respuesta\n- Puerto crítico afectado: 443\n- Disponibilidad esperada durante el incidente: servicio web fuera de línea\n \nGenera una alerta técnica breve para el equipo de TI indicando:\n \n1. Severidad\n2. Qué está ocurriendo\n3. Causa probable\n4. Impacto sobre los usuarios y aplicaciones\n5. Recomendación técnica inmediata\n \nResponde en español, de manera clara y profesional.\n`;\n \nreturn [\n  {\n    json: {\n      tipoIncidente: \"Caída del servicio web Nginx\",\n      nginxUp,\n      puertoAfectado: 443,\n      prompt\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "f15218c1-38c4-4d3b-ba92-305834187963",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{$json.prompt.toJsonString()}}\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "27dbf891-c88a-4c02-8ca5-580929b50d69",
+      "name": "Groq"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "text",
+              "value": "={{$json.choices[0].message.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        0
+      ],
+      "id": "2d2ab946-af8d-493a-bd06-d54cd49ee7eb",
+      "name": "Enviar Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Consultar Prometheus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Prometheus": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "04ebfb50-7093-431d-a184-d8a3c0f4efd3",
+  "meta": {
+    "instanceId": "75efdd3a3fa94d5854ab03049beff9443530d46a8dcac125f61e358a6a7c5fe2"
+  },
+  "nodeGroups": [],
+  "id": "qSEuhwzHg2W8MZpI",
+  "tags": []
+}
