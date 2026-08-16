@@ -26,6 +26,21 @@ services:
     networks:
       - nutrialianza-net
 
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: nutrialianza-mysqld-exporter
+    command:
+      - --mysqld.address=mysql:3306
+      - --mysqld.username=exporter
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD}
+    ports:
+      - "9104:9104"
+    depends_on:
+      - mysql
+    networks:
+      - nutrialianza-net
+
   prometheus:
     image: prom/prometheus:latest
     container_name: nutrialianza-prometheus
@@ -43,6 +58,19 @@ services:
       - "9100:9100"
     networks:
       - nutrialianza-net
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.1
+    container_name: nutrialianza-nginx-exporter
+    command:
+      - --nginx.scrape-uri=http://nginx/stub_status
+    ports:
+      - "9113:9113"
+    depends_on:
+      - nginx
+    networks:
+      - nutrialianza-net
+
 
   loki:
     image: grafana/loki:2.9.8
