@@ -1,0 +1,180 @@
+{
+  "name": "Alerta IA NutriAlianza - Escenario 2 MySQL",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "07c9f3a4-b455-4874-8e0a-82f610b30383",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "increase(mysql_global_status_connection_errors_total{error=\"max_connections\"}[1m])"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "ddcd911e-8035-4d2f-81a1-9d0f4e0736ab",
+      "name": "Consultar Prometheus"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $json.data?.result || [];\n \nif (results.length === 0) {\n  return [];\n}\n \nconst rejectedConnections = parseFloat(\n  results[0].value?.[1] || \"0\"\n);\n \nif (rejectedConnections <= 0) {\n  return [];\n}\n \nconst prompt = `\nActúa como analista de infraestructura de NutriAlianza S.A.\n \nPrometheus detectó conexiones rechazadas por el servidor MySQL.\n \nDATOS DEL INCIDENTE:\n- Servicio afectado: MySQL\n- Tipo de incidente: Saturación de conexiones\n- Conexiones rechazadas en el último minuto: ${rejectedConnections.toFixed(0)}\n- Límite de conexiones configurado en MySQL: 151\n- Motivo: max_connections alcanzado\n \nEl servidor MySQL comenzó a rechazar nuevas conexiones debido a que se alcanzó el límite máximo de sesiones concurrentes.\n \nGenera una alerta técnica breve para el equipo de TI indicando:\n \n1. Severidad\n2. Qué está ocurriendo\n3. Causa probable\n4. Impacto sobre las aplicaciones que dependen de MySQL\n5. Recomendación técnica inmediata\n \nResponde en español, de manera clara y profesional.\n`;\n \nreturn [\n  {\n    json: {\n      tipoIncidente: \"Saturación de conexiones MySQL\",\n      rejectedConnections,\n      maxConnections: 151,\n      prompt\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "ad50e2e3-ded2-4a43-85d0-bb13edc1430c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{$json.prompt.toJsonString()}}\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "f492036b-91d1-4acc-afad-00ad66f1e35b",
+      "name": "Groq"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "text",
+              "value": "={{$json.choices[0].message.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        0
+      ],
+      "id": "7c417528-048a-4c67-ade7-1af1211bdb34",
+      "name": "Enviar Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Consultar Prometheus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Prometheus": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6bc6ba95-9103-4303-b965-842ee628b88e",
+  "meta": {
+    "instanceId": "75efdd3a3fa94d5854ab03049beff9443530d46a8dcac125f61e358a6a7c5fe2"
+  },
+  "nodeGroups": [],
+  "id": "AcRo03uA0krRdoWd",
+  "tags": []
+}
