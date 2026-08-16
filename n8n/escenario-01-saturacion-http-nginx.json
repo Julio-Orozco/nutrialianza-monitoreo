@@ -1,0 +1,180 @@
+{
+  "name": "Alerta IA NutriAlianza - Escenario 1 Nginx",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "972adc2e-15ae-4c08-9e0d-c5d286ea523a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "rate(nginx_http_requests_total[1m])"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        176,
+        0
+      ],
+      "id": "67fb35b2-9529-472b-a2e6-4a1a73ade94d",
+      "name": "Consultar Prometheus"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $json.data?.result || [];\n \nif (results.length === 0) {\n  return [];\n}\n \nconst requestsPerSecond = parseFloat(\n  results[0].value?.[1] || \"0\"\n);\n \nconst UMBRAL_RPS = 20;\n \n// Si el tráfico está normal, no generar alerta\nif (requestsPerSecond < UMBRAL_RPS) {\n  return [];\n}\n \nconst prompt = `\nActúa como analista de infraestructura de NutriAlianza S.A.\n \nPrometheus detectó tráfico HTTP anormal sobre el servidor Nginx.\n \nDATOS DEL INCIDENTE:\n- Servicio: Nginx\n- Tipo de incidente: Saturación HTTP\n- Solicitudes por segundo detectadas: ${requestsPerSecond.toFixed(2)}\n- Umbral configurado: ${UMBRAL_RPS} solicitudes por segundo\n- Endpoint sometido a prueba: /stress\n \nDurante esta situación Nginx puede comenzar a rechazar solicitudes con código HTTP 503.\n \nGenera una alerta técnica breve para el equipo de TI indicando:\n \n1. Severidad\n2. Qué está ocurriendo\n3. Causa probable\n4. Impacto posible\n5. Recomendación técnica inmediata\n \nResponde en español, de manera clara y profesional.\n`;\n \nreturn [\n  {\n    json: {\n      tipoIncidente: \"Saturación HTTP Nginx\",\n      requestsPerSecond,\n      umbral: UMBRAL_RPS,\n      prompt\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "efacf78e-aacb-41bb-84e8-c369010df44f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GROQ_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{$json.prompt.toJsonString()}}\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "2d5cb5fb-2ed5-4c81-b4ed-57b0494d7d4d",
+      "name": "Groq"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$env.TELEGRAM_CHAT_ID}}"
+            },
+            {
+              "name": "text",
+              "value": "={{$json.choices[0].message.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        0
+      ],
+      "id": "f3f6019a-9b3b-493f-a6c7-dca303ef102a",
+      "name": "Enviar Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Consultar Prometheus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Prometheus": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq": {
+      "main": [
+        [
+          {
+            "node": "Enviar Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7107f895-8fd1-4c4c-b4e0-4f770d4bfb4b",
+  "meta": {
+    "instanceId": "75efdd3a3fa94d5854ab03049beff9443530d46a8dcac125f61e358a6a7c5fe2"
+  },
+  "nodeGroups": [],
+  "id": "Wqasl1RzXFOGZK1W",
+  "tags": []
+}
