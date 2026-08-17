@@ -41,5 +41,15 @@ filebeat.inputs:
       log_type: error
     fields_under_root: true
 
+  - type: filestream
+    id: ssh-auth
+    enabled: true
+    paths:
+      - /var/log/host/auth.log
+    fields:
+      service: ssh
+      log_type: auth
+    fields_under_root: true
+
 output.logstash:
   hosts: ["logstash:5044"]

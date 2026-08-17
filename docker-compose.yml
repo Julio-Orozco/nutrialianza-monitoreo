@@ -74,6 +74,20 @@ services:
     networks:
       - nutrialianza-net
 
+  blackbox-exporter:
+    image: quay.io/prometheus/blackbox-exporter:v0.28.0
+    container_name: nutrialianza-blackbox-exporter
+    user: root
+    cap_add:
+      - NET_RAW
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/config/blackbox.yml:ro
+    command:
+      - --config.file=/config/blackbox.yml
+    networks:
+      - nutrialianza-net
 
   loki:
     image: grafana/loki:2.9.8
@@ -107,6 +121,7 @@ services:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/nginx:/var/log/nginx:ro
       - mysql_data:/var/lib/mysql:ro
+      - /var/log/auth.log:/var/log/host/auth.log:ro
     command: filebeat -e --strict.perms=false
     depends_on:
       - nginx
