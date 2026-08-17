@@ -1,10 +1,45 @@
 
 filebeat.inputs:
+
   - type: filestream
-    id: nginx-logs
+    id: nginx-access
     enabled: true
     paths:
-      - /var/log/nginx/*.log
+      - /var/log/nginx/access.log
+    fields:
+      service: nginx
+      log_type: access
+    fields_under_root: true
 
-output.console:
-  pretty: true
+  - type: filestream
+    id: nginx-error
+    enabled: true
+    paths:
+      - /var/log/nginx/error.log
+    fields:
+      service: nginx
+      log_type: error
+    fields_under_root: true
+
+  - type: filestream
+    id: mysql-slow
+    enabled: true
+    paths:
+      - /var/lib/mysql/slow.log
+    fields:
+      service: mysql
+      log_type: slow_query
+    fields_under_root: true
+
+  - type: filestream
+    id: mysql-error
+    enabled: true
+    paths:
+      - /var/lib/mysql/error.log
+    fields:
+      service: mysql
+      log_type: error
+    fields_under_root: true
+
+output.logstash:
+  hosts: ["logstash:5044"]
