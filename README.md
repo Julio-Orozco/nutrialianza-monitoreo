@@ -5,64 +5,42 @@
 - **Julio Gutiérrez Orozco**
 - **María José Miranda López**
 
-**Curso:** BCD 7212 - Redes de Computadoras
-**Periodo Académico:** II Cuatrimestre 2026
-**Proyecto:** Sistema de Monitoreo Inteligente con Docker e IA
+- **Curso:** BCD 7212 - Redes de Computadoras
+- **Periodo Académico:** II Cuatrimestre 2026
+- **Proyecto:** Sistema de Monitoreo Inteligente con Docker e IA
+- **Institución:** LEAD University
 
 ---
 
 ## Descripción del proyecto
 
-Este proyecto implementa un sistema de monitoreo inteligente para **NutriAlianza S.A.**, desarrollado como parte del curso **BCD 7212 - Redes de Computadoras**.
+Este proyecto implementa un sistema de monitoreo inteligente para **NutriAlianza S.A.**, orientado a supervisar servicios críticos, recopilar métricas y logs, detectar incidentes operativos, generar análisis técnicos mediante inteligencia artificial y enviar alertas automáticas al equipo de TI.
 
-La solución utiliza una infraestructura local basada en contenedores Docker para supervisar servicios, recopilar métricas, visualizar información, detectar incidentes operativos y generar alertas técnicas mediante inteligencia artificial.
+La solución se ejecuta localmente mediante **Docker y Docker Compose** y fue desarrollada sobre **Windows con WSL2 Ubuntu y Docker Desktop**.
 
-El sistema integra componentes de monitoreo, automatización, visualización y notificación, entre ellos:
+El sistema integra componentes de infraestructura, observabilidad, automatización, visualización y notificación:
 
 - Nginx.
-- MySQL.
+- MySQL 8.0.
 - Prometheus.
 - Node Exporter.
 - Nginx Prometheus Exporter.
 - MySQL Prometheus Exporter.
-- N8N.
-- Groq.
-- Telegram.
-- Grafana.
-- Loki.
 - Filebeat.
+- Logstash.
+- Loki.
+- N8N.
+- Groq API.
+- Telegram Bot API.
+- Grafana.
 
-La infraestructura fue desarrollada y probada sobre **Windows utilizando WSL2 con Ubuntu, Docker Desktop y Docker Compose**, lo cual permite ejecutar un entorno Linux completo sin utilizar una máquina virtual tradicional.
-
-El flujo principal de monitoreo implementado es:
-
-```text
-Servicios e infraestructura
-        │
-        ├── Node Exporter
-        ├── Nginx Exporter
-        └── MySQL Exporter
-                │
-                ▼
-           Prometheus
-                │
-                ▼
-               N8N
-                │
-                ▼
-              Groq IA
-                │
-                ▼
-             Telegram
-```
-
-Grafana se utiliza como herramienta de visualización para consultar métricas y representar gráficamente el estado general de la infraestructura.
+La arquitectura permite correlacionar el estado de los servicios con métricas y registros operativos para generar alertas con mayor contexto técnico.
 
 ---
 
 # Estado actual del proyecto
 
-Actualmente se encuentran implementados y probados los siguientes componentes:
+Actualmente se encuentran implementados y validados los siguientes componentes:
 
 - Infraestructura Docker mediante Docker Compose.
 - Nginx como servidor web.
@@ -71,28 +49,76 @@ Actualmente se encuentran implementados y probados los siguientes componentes:
 - Certificado SSL autofirmado para el entorno académico local.
 - Endpoint `/health`.
 - MySQL 8.0.
+- Base de datos `nutrialianza_db`.
+- **335.000 registros validados en la tabla `formulas`.**
+- Datos iniciales disponibles en la tabla `inventario`.
 - Prometheus.
 - Node Exporter.
 - Nginx Prometheus Exporter.
 - MySQL Prometheus Exporter.
+- Filebeat.
+- Logstash como puente entre Filebeat y Loki.
+- Loki.
 - N8N.
 - Groq API.
 - Telegram Bot API.
 - Grafana.
-- Loki.
-- Filebeat.
 - Dashboard general de monitoreo.
-- Workflows independientes para los tres escenarios obligatorios.
-- Evidencias técnicas de los escenarios ejecutados.
 - UFW.
 - Fail2ban.
+- Workflows independientes para los tres escenarios obligatorios.
+- Evidencias técnicas de los escenarios ejecutados.
+- Recolección de logs de Nginx hacia Loki.
+- Recolección de slow queries de MySQL hacia Loki.
 - Automatización de alertas mediante inteligencia artificial.
 
-Los tres escenarios obligatorios de estrés fueron ejecutados satisfactoriamente:
+Los tres escenarios obligatorios fueron ejecutados satisfactoriamente:
 
 1. **Saturación HTTP en Nginx.**
 2. **Saturación de conexiones MySQL.**
 3. **Caída del servicio web Nginx.**
+
+---
+
+# Arquitectura general
+
+El flujo de métricas funciona de la siguiente manera:
+
+```text
+Node Exporter ──────────────┐
+Nginx Exporter ─────────────┤
+MySQL Exporter ─────────────┤
+                            ▼
+                       Prometheus
+                            │
+                            ▼
+                           N8N
+                            │
+                            ▼
+                         Groq IA
+                            │
+                            ▼
+                         Telegram
+```
+
+El flujo de logs implementado es:
+
+```text
+Nginx access/error logs ──────┐
+                              │
+MySQL slow/error logs ────────┤
+                              ▼
+                           Filebeat
+                              │
+                              ▼
+                           Logstash
+                              │
+                              ▼
+                             Loki
+                              │
+                              ▼
+                           Grafana
+```
 
 ---
 
@@ -113,8 +139,9 @@ Los tres escenarios obligatorios de estrés fueron ejecutados satisfactoriamente
 - Node Exporter
 - Nginx Prometheus Exporter
 - MySQL Prometheus Exporter
+- Filebeat 8.13.4
+- Logstash con Loki Output Plugin
 - Loki
-- Filebeat
 - N8N
 - Groq API
 - Telegram Bot API
@@ -147,14 +174,21 @@ nutrialianza-monitoreo/
 │       └── index.html
 │
 ├── mysql/
+│   ├── nutrialianza.cnf
+│   ├── nutrialianza_db.sql
+│   │
 │   └── init/
-│       └── 01_schema.sql
+│       ├── 01_schema.sql
+│       └── 02_seed_335k_formulas.sql
 │
 ├── prometheus/
 │   └── prometheus.yml
 │
 ├── loki/
 │   └── loki-config.yml
+│
+├── logstash/
+│   └── loki.conf
 │
 ├── filebeat/
 │   └── filebeat.yml
@@ -176,32 +210,26 @@ nutrialianza-monitoreo/
     └── escenario-03-caida-servicio-nginx.pdf
 ```
 
-Los archivos locales utilizados como respaldo durante las pruebas utilizan extensión:
-
-```text
-*.bak
-```
-
-Estos archivos están excluidos mediante `.gitignore` y no forman parte del repositorio.
+Los archivos locales de respaldo con extensión `*.bak` están excluidos mediante `.gitignore`.
 
 ---
 
 # Requisitos previos
 
-Antes de ejecutar el proyecto se debe contar con:
+Antes de ejecutar el proyecto se requiere:
 
 - Git.
-- Docker Desktop en Windows o macOS, o Docker Engine en Linux.
+- Docker Desktop en Windows/macOS o Docker Engine en Linux.
 - Docker Compose v2.
 - Conexión a Internet.
 - Puertos requeridos disponibles.
-- Cuenta gratuita en Groq.
+- Cuenta en Groq.
 - API Key de Groq.
 - Bot de Telegram creado mediante BotFather.
-- Token del bot de Telegram.
+- Token del bot.
 - Chat ID del grupo, canal o conversación utilizada para recibir alertas.
 
-El ambiente utilizado durante el desarrollo incluye adicionalmente:
+En el entorno utilizado durante el desarrollo también se empleó:
 
 - Windows.
 - PowerShell.
@@ -214,13 +242,11 @@ El ambiente utilizado durante el desarrollo incluye adicionalmente:
 
 ## 1. Clonar el repositorio
 
-Desde una terminal:
-
 ```bash
 git clone <URL_DEL_REPOSITORIO>
 ```
 
-Entrar al proyecto:
+Entrar en la carpeta:
 
 ```bash
 cd nutrialianza-monitoreo
@@ -230,19 +256,19 @@ cd nutrialianza-monitoreo
 
 ## 2. Configurar variables de entorno
 
-El repositorio contiene el archivo:
+El repositorio contiene:
 
 ```text
 .env.example
 ```
 
-Se debe crear una copia llamada `.env`:
+Crear el archivo local `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Editar el archivo:
+Editar:
 
 ```bash
 nano .env
@@ -269,11 +295,9 @@ GRAFANA_ADMIN_USER=CAMBIAR_USUARIO_GRAFANA
 GRAFANA_ADMIN_PASSWORD=CAMBIAR_PASSWORD_GRAFANA
 ```
 
-> **Importante:** el archivo `.env` contiene credenciales privadas y no debe subirse a GitHub. Se encuentra incluido dentro del archivo `.gitignore`.
+> **Importante:** `.env` contiene credenciales privadas y no debe subirse al repositorio. El archivo está excluido mediante `.gitignore`.
 
-Los workflows de N8N utilizan variables de entorno para consumir las credenciales de Groq y Telegram.
-
-Los tokens reales no se almacenan directamente dentro de los archivos JSON exportados.
+Los workflows de N8N utilizan variables de entorno para consumir las credenciales de Groq y Telegram. Los tokens reales no deben almacenarse directamente dentro de los archivos JSON exportados.
 
 ---
 
@@ -297,13 +321,13 @@ Validar la configuración:
 docker compose config
 ```
 
-Los servicios principales deben aparecer con estado:
+Los servicios principales deben aparecer en estado:
 
 ```text
 Up
 ```
 
-En caso de problemas con un servicio específico:
+Para consultar los logs de un servicio:
 
 ```bash
 docker compose logs <nombre-del-servicio>
@@ -312,79 +336,39 @@ docker compose logs <nombre-del-servicio>
 Ejemplo:
 
 ```bash
-docker compose logs nginx
+docker compose logs mysql
 ```
 
 ---
 
-# MySQL
+# Servicios principales
 
-MySQL utiliza la base de datos:
-
-```text
-nutrialianza_db
-```
-
-Las credenciales son obtenidas desde el archivo `.env`.
-
-Para comprobar que MySQL está disponible:
-
-```bash
-docker compose exec mysql mysql \
-  -uroot \
-  -p"$MYSQL_ROOT_PASSWORD" \
-  -e "SHOW DATABASES;"
-```
-
----
-
-# Usuario de monitoreo para MySQL Exporter
-
-`mysqld-exporter` utiliza un usuario independiente llamado:
-
-```text
-exporter
-```
-
-Primero se deben cargar las variables:
-
-```bash
-source .env
-```
-
-Crear el usuario:
-
-```bash
-docker compose exec mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${MYSQL_EXPORTER_PASSWORD}' WITH MAX_USER_CONNECTIONS 3; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%'; FLUSH PRIVILEGES;"
-```
-
-Comprobarlo:
-
-```bash
-docker compose exec mysql mysql \
-  -uroot \
-  -p"$MYSQL_ROOT_PASSWORD" \
-  -e "SELECT User,Host,max_user_connections FROM mysql.user WHERE User='exporter';"
-```
-
-El resultado esperado incluye:
-
-```text
-exporter | % | 3
-```
+| Servicio | Puerto | Acceso |
+|---|---:|---|
+| Nginx HTTP | 80 | http://localhost |
+| Nginx HTTPS | 443 | https://localhost |
+| MySQL | 3306 | localhost:3306 |
+| Grafana | 3000 | http://localhost:3000 |
+| Loki | 3100 | http://localhost:3100 |
+| Logstash Beats | 5044 | localhost:5044 |
+| N8N | 5678 | http://localhost:5678 |
+| Prometheus | 9090 | http://localhost:9090 |
+| Node Exporter | 9100 | http://localhost:9100/metrics |
+| MySQL Exporter | 9104 | http://localhost:9104/metrics |
+| Nginx Exporter | 9113 | http://localhost:9113/metrics |
 
 ---
 
 # HTTPS y certificado local
 
-Nginx está configurado para utilizar:
+Nginx está configurado para:
 
 ```text
 HTTP  → puerto 80
 HTTPS → puerto 443
 ```
 
-El entorno académico utiliza un certificado SSL autofirmado almacenado dentro de:
+El entorno académico utiliza un certificado SSL autofirmado almacenado en:
 
 ```text
 nginx/certs/
@@ -397,50 +381,9 @@ nutrialianza.crt
 nutrialianza.key
 ```
 
-Este certificado se utiliza únicamente para pruebas locales y no debe considerarse un certificado válido para un ambiente productivo real.
+El certificado es únicamente para pruebas locales.
 
-Debido a que se trata de un certificado autofirmado, las pruebas HTTPS mediante `curl` utilizan:
-
-```bash
-curl -k https://localhost/health
-```
-
----
-
-# Servicios y puertos
-
-| Servicio | Puerto | Acceso |
-|---|---:|---|
-| Nginx HTTP | 80 | http://localhost |
-| Nginx HTTPS | 443 | https://localhost |
-| MySQL | 3306 | localhost:3306 |
-| Grafana | 3000 | http://localhost:3000 |
-| N8N | 5678 | http://localhost:5678 |
-| Prometheus | 9090 | http://localhost:9090 |
-| Node Exporter | 9100 | http://localhost:9100/metrics |
-| MySQL Exporter | 9104 | http://localhost:9104/metrics |
-| Nginx Exporter | 9113 | http://localhost:9113/metrics |
-| Loki | 3100 | http://localhost:3100 |
-
----
-
-# Health Checks
-
-## HTTP
-
-```bash
-curl http://localhost/health
-```
-
-Resultado esperado:
-
-```text
-NutriAlianza OK
-```
-
----
-
-## HTTPS
+Prueba HTTPS:
 
 ```bash
 curl -k https://localhost/health
@@ -454,9 +397,33 @@ NutriAlianza OK HTTPS
 
 ---
 
-## Puerto TCP 443
+# Health Checks de Nginx
 
-Para comprobar que HTTPS está disponible:
+## HTTP
+
+```bash
+curl http://localhost/health
+```
+
+Resultado esperado:
+
+```text
+NutriAlianza OK
+```
+
+## HTTPS
+
+```bash
+curl -k https://localhost/health
+```
+
+Resultado esperado:
+
+```text
+NutriAlianza OK HTTPS
+```
+
+## Puerto TCP 443
 
 ```bash
 timeout 3 bash -c '</dev/tcp/127.0.0.1/443' && echo "PUERTO 443 ABIERTO" || echo "PUERTO 443 CERRADO"
@@ -470,9 +437,222 @@ PUERTO 443 ABIERTO
 
 ---
 
+# Base de datos MySQL
+
+La base principal se denomina:
+
+```text
+nutrialianza_db
+```
+
+La base contiene las tablas:
+
+```text
+formulas
+inventario
+```
+
+## Estado validado
+
+```text
+Tabla formulas:
+335000 registros
+
+Primer ID:
+1
+
+Último ID:
+335000
+
+Tabla inventario:
+3 registros iniciales
+```
+
+La cantidad de **335.000 registros corresponde específicamente a la tabla `formulas`**.
+
+La tabla `inventario` conserva datos iniciales para las pruebas funcionales. La especificación del proyecto no establece que `inventario` deba contener 335.000 registros.
+
+---
+
+# Generación reproducible de las 335.000 fórmulas
+
+El script:
+
+```text
+mysql/init/02_seed_335k_formulas.sql
+```
+
+genera automáticamente:
+
+```text
+335000 registros
+```
+
+sin almacenar 335.000 sentencias `INSERT` independientes.
+
+El script:
+
+1. Limpia los registros de prueba de `formulas`.
+2. Reinicia el identificador.
+3. Genera una secuencia del 1 al 335000.
+4. Crea nombres, ingredientes, cantidades y fechas.
+5. Inserta exactamente 335.000 fórmulas.
+6. Verifica la cantidad final.
+
+Los IDs se generan ordenadamente:
+
+```text
+1      → Formula Engorde A
+2      → Formula Lechera B
+3      → Formula Avicola C
+4      → Formula NutriAlianza 000004
+...
+335000 → Formula NutriAlianza 335000
+```
+
+---
+
+# Archivo consolidado de la base de datos
+
+El repositorio incluye:
+
+```text
+mysql/nutrialianza_db.sql
+```
+
+Este archivo combina:
+
+```text
+mysql/init/01_schema.sql
+mysql/init/02_seed_335k_formulas.sql
+```
+
+y permite una importación manual reproducible.
+
+Importar manualmente:
+
+```bash
+docker compose exec -T mysql mysql \
+  -uroot \
+  -p"$MYSQL_ROOT_PASSWORD" \
+  nutrialianza_db \
+  < mysql/nutrialianza_db.sql
+```
+
+Verificar:
+
+```bash
+docker compose exec mysql mysql \
+  -u"$MYSQL_USER" \
+  -p"$MYSQL_PASSWORD" \
+  "$MYSQL_DATABASE" \
+  -e "SELECT COUNT(*) AS total_formulas, MIN(id) AS primer_id, MAX(id) AS ultimo_id FROM formulas; SELECT COUNT(*) AS total_inventario FROM inventario;"
+```
+
+Resultado validado:
+
+```text
+total_formulas = 335000
+primer_id      = 1
+ultimo_id      = 335000
+total_inventario = 3
+```
+
+---
+
+# Inicialización automática de MySQL
+
+Los scripts dentro de:
+
+```text
+mysql/init/
+```
+
+se montan en:
+
+```text
+/docker-entrypoint-initdb.d
+```
+
+Cuando MySQL se inicializa con un volumen nuevo, los scripts se ejecutan automáticamente en orden:
+
+```text
+01_schema.sql
+02_seed_335k_formulas.sql
+```
+
+Si el volumen de MySQL ya existe, los scripts de inicialización no vuelven a ejecutarse automáticamente. En ese caso puede utilizarse `mysql/nutrialianza_db.sql` para realizar una importación manual.
+
+---
+
+# Configuración de logs de MySQL
+
+MySQL utiliza:
+
+```text
+mysql/nutrialianza.cnf
+```
+
+La configuración activa:
+
+```text
+slow_query_log = ON
+long_query_time = 2 segundos
+slow_query_log_file = /var/lib/mysql/slow.log
+log_error = /var/lib/mysql/error.log
+```
+
+Estado validado:
+
+```text
+slow_query_log = ON
+long_query_time = 2.000000
+slow_query_log_file = /var/lib/mysql/slow.log
+log_error = /var/lib/mysql/error.log
+```
+
+---
+
+# Usuario de monitoreo para MySQL Exporter
+
+El MySQL Exporter utiliza un usuario independiente:
+
+```text
+exporter
+```
+
+Cargar variables:
+
+```bash
+source .env
+```
+
+Crear el usuario:
+
+```bash
+docker compose exec mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${MYSQL_EXPORTER_PASSWORD}' WITH MAX_USER_CONNECTIONS 3; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%'; FLUSH PRIVILEGES;"
+```
+
+Verificar:
+
+```bash
+docker compose exec mysql mysql \
+  -uroot \
+  -p"$MYSQL_ROOT_PASSWORD" \
+  -e "SELECT User,Host,max_user_connections FROM mysql.user WHERE User='exporter';"
+```
+
+Resultado esperado:
+
+```text
+exporter | % | 3
+```
+
+---
+
 # Prometheus
 
-Prometheus se encuentra disponible en:
+Prometheus está disponible en:
 
 ```text
 http://localhost:9090
@@ -487,7 +667,7 @@ nginx-exporter:9113
 mysqld-exporter:9104
 ```
 
-Los jobs configurados son:
+Jobs configurados:
 
 ```text
 prometheus
@@ -499,8 +679,6 @@ mysql
 ---
 
 ## Validar Nginx Exporter
-
-Consulta:
 
 ```bash
 curl -sG http://localhost:9090/api/v1/query \
@@ -517,8 +695,6 @@ Estado normal:
 
 ## Validar MySQL Exporter
 
-Consulta:
-
 ```bash
 curl -sG http://localhost:9090/api/v1/query \
   --data-urlencode 'query=mysql_up'
@@ -534,7 +710,7 @@ Estado normal:
 
 ## Validar Node Exporter
 
-Desde Prometheus:
+PromQL:
 
 ```promql
 up{job="node-exporter"}
@@ -550,13 +726,13 @@ Resultado esperado:
 
 # Nginx Exporter
 
-El Nginx Prometheus Exporter se encuentra disponible en:
+Disponible en:
 
 ```text
 http://localhost:9113/metrics
 ```
 
-Para comprobarlo:
+Prueba:
 
 ```bash
 curl -s http://localhost:9113/metrics | grep "^nginx_up "
@@ -568,25 +744,25 @@ Resultado esperado:
 nginx_up 1
 ```
 
-También se utiliza la métrica:
+También se utiliza:
 
 ```text
 nginx_http_requests_total
 ```
 
-para analizar tráfico HTTP.
+para monitorear tráfico HTTP.
 
 ---
 
 # MySQL Exporter
 
-El MySQL Prometheus Exporter se encuentra disponible en:
+Disponible en:
 
 ```text
 http://localhost:9104/metrics
 ```
 
-Para comprobarlo:
+Prueba:
 
 ```bash
 curl -s http://localhost:9104/metrics | grep "^mysql_up "
@@ -598,7 +774,7 @@ Resultado esperado:
 mysql_up 1
 ```
 
-Entre las métricas utilizadas durante las pruebas se encuentran:
+Métricas utilizadas:
 
 ```text
 mysql_global_status_threads_connected
@@ -608,9 +784,158 @@ mysql_global_status_connection_errors_total
 
 ---
 
+# Filebeat, Logstash y Loki
+
+La canalización de logs implementada es:
+
+```text
+Nginx / MySQL
+      ↓
+   Filebeat
+      ↓
+   Logstash
+      ↓
+     Loki
+```
+
+Filebeat recolecta:
+
+```text
+/var/log/nginx/access.log
+/var/log/nginx/error.log
+/var/lib/mysql/slow.log
+/var/lib/mysql/error.log
+```
+
+Filebeat envía los eventos hacia:
+
+```text
+logstash:5044
+```
+
+Logstash utiliza:
+
+```text
+logstash/loki.conf
+```
+
+para reenviar los eventos hacia:
+
+```text
+http://loki:3100/loki/api/v1/push
+```
+
+---
+
+# Validación de logs de Nginx en Loki
+
+Durante las pruebas se generó una solicitud identificable:
+
+```bash
+curl "http://localhost/health?prueba_loki=NGINX_LOKI_OK_2026"
+```
+
+Consulta en Loki:
+
+```bash
+curl -sG http://localhost:3100/loki/api/v1/query_range \
+  --data-urlencode 'query={job="nutrialianza"} |= "NGINX_LOKI_OK_2026"' \
+  --data-urlencode 'limit=20'
+```
+
+El resultado validado incluyó:
+
+```text
+job="nutrialianza"
+service="nginx"
+log_type="access"
+```
+
+y la solicitud:
+
+```text
+GET /health?prueba_loki=NGINX_LOKI_OK_2026
+```
+
+Resultado:
+
+```text
+Nginx → Filebeat → Logstash → Loki ✅
+```
+
+---
+
+# Validación de slow queries MySQL en Loki
+
+Se generó una consulta deliberadamente lenta:
+
+```bash
+docker compose exec mysql mysql \
+  -u"$MYSQL_USER" \
+  -p"$MYSQL_PASSWORD" \
+  "$MYSQL_DATABASE" \
+  -e "SELECT SLEEP(3);"
+```
+
+Como:
+
+```text
+long_query_time = 2
+```
+
+la consulta quedó registrada en:
+
+```text
+/var/lib/mysql/slow.log
+```
+
+La consulta en Loki:
+
+```bash
+curl -sG http://localhost:3100/loki/api/v1/query_range \
+  --data-urlencode 'query={job="nutrialianza",service="mysql",log_type="slow_query"} |= "SELECT SLEEP(3)"' \
+  --data-urlencode 'limit=20'
+```
+
+devolvió el registro:
+
+```text
+SELECT SLEEP(3);
+```
+
+Resultado:
+
+```text
+MySQL → Filebeat → Logstash → Loki ✅
+```
+
+---
+
+# Loki
+
+Loki está disponible en:
+
+```text
+http://localhost:3100
+```
+
+Validación:
+
+```bash
+curl http://localhost:3100/ready
+```
+
+Resultado esperado:
+
+```text
+ready
+```
+
+---
+
 # Workflows de N8N
 
-N8N se encuentra disponible en:
+N8N está disponible en:
 
 ```text
 http://localhost:5678
@@ -622,7 +947,7 @@ Los workflows exportados están almacenados en:
 n8n/
 ```
 
-Archivos disponibles:
+Archivos:
 
 ```text
 alerta-ia-nutrialianza.json
@@ -633,7 +958,7 @@ escenario-03-caida-servicio-nginx.json
 
 ---
 
-## Importar workflows
+# Importar workflows N8N
 
 1. Abrir:
 
@@ -643,27 +968,27 @@ http://localhost:5678
 
 2. Ingresar a N8N.
 
-3. Ir a la opción de importar workflow desde archivo.
+3. Seleccionar la opción para importar un workflow desde archivo.
 
-4. Seleccionar el archivo JSON requerido dentro de:
+4. Importar los archivos JSON de:
 
 ```text
 n8n/
 ```
 
-5. Verificar las variables de entorno utilizadas por Groq y Telegram.
+5. Verificar variables de entorno de Groq y Telegram.
 
-6. Confirmar las configuraciones de cada nodo.
+6. Revisar la configuración de cada nodo.
 
-7. Publicar o activar el workflow correspondiente al escenario que se desea ejecutar.
+7. Publicar o activar el workflow correspondiente a la prueba que se desea ejecutar.
 
-> Durante las pruebas se recomienda mantener activo únicamente el workflow correspondiente al escenario en ejecución para evitar alertas repetidas o innecesarias.
+> Se recomienda mantener activo únicamente el workflow relacionado con el escenario en ejecución para evitar alertas repetidas.
 
 ---
 
 # Flujo general de automatización
 
-Los escenarios utilizan la siguiente estructura:
+Los escenarios utilizan:
 
 ```text
 Schedule Trigger
@@ -687,131 +1012,67 @@ Durante las pruebas se utilizó un intervalo de:
 10 segundos
 ```
 
-Prometheus entrega la métrica correspondiente al incidente.
-
-N8N interpreta el resultado y determina si existe una condición anormal.
-
-Cuando se detecta un incidente:
-
-```text
-Prometheus
-     ↓
-N8N
-     ↓
-JavaScript
-     ↓
-Groq
-     ↓
-Telegram
-```
-
-Groq recibe información técnica del incidente y genera una alerta en español con:
+Cuando N8N detecta una condición anormal, Groq genera una alerta técnica en español con:
 
 - Severidad.
 - Descripción del incidente.
 - Causa probable.
-- Impacto posible.
+- Impacto.
 - Recomendación técnica inmediata.
 
 ---
 
 # Grafana
 
-Grafana se encuentra disponible en:
+Grafana está disponible en:
 
 ```text
 http://localhost:3000
 ```
 
-El dashboard principal creado se denomina:
+Dashboard principal:
 
 ```text
 NutriAlianza - Monitoreo General
 ```
 
-El archivo exportado del dashboard se encuentra en:
+Archivo exportado:
 
 ```text
 grafana/dashboards/nutrialianza-grafana-dashboard.json
 ```
 
-Prometheus se configura como fuente de datos mediante:
+Prometheus se utiliza como fuente de datos mediante:
 
 ```text
 http://prometheus:9090
 ```
 
-Los paneles creados permiten visualizar:
+Los paneles configurados incluyen:
 
-- Estado general de servicios.
+- Estado general de los servicios.
 - Servicios activos.
 - Uso de CPU.
 - Uso de memoria RAM.
 - Uso de disco.
 
-> Dentro de Grafana debe utilizarse el nombre interno del servicio `prometheus` y no `localhost`, debido a que Grafana se ejecuta dentro de un contenedor Docker.
+> Dentro de Grafana debe utilizarse el nombre interno `prometheus` y no `localhost`, ya que ambos servicios se ejecutan en contenedores.
 
 ---
-
-# Loki
-
-Loki está disponible en:
-
-```text
-http://localhost:3100
-```
-
-Para validar su disponibilidad:
-
-```bash
-curl http://localhost:3100/ready
-```
-
-El resultado esperado es:
-
-```text
-ready
-```
-
----
-
-# Filebeat
-
-El proyecto incluye:
-
-```text
-filebeat/filebeat.yml
-```
-
-Filebeat forma parte de la arquitectura de recopilación de logs contemplada para el sistema.
-
-Antes de la entrega final debe verificarse que la salida configurada en `filebeat.yml` corresponda exactamente con la arquitectura final de almacenamiento y consulta de logs utilizada por el grupo.
-
----
-
-# Escenarios obligatorios ejecutados
 
 # Escenario 1 - Saturación HTTP en Nginx
 
 ## Objetivo
 
-Simular una cantidad elevada de solicitudes HTTP contra Nginx hasta provocar respuestas HTTP de error debido al mecanismo de rate limiting configurado.
+Simular una cantidad elevada de solicitudes HTTP contra Nginx hasta provocar respuestas HTTP `503`.
 
----
-
-## Endpoint utilizado
+## Endpoint
 
 ```text
 /stress
 ```
 
-Nginx utiliza una zona de limitación de solicitudes configurada específicamente para este escenario.
-
----
-
-## Prueba realizada
-
-Se utilizó ApacheBench:
+## Prueba ejecutada
 
 ```bash
 ab -n 50000 -c 50 http://localhost/stress
@@ -822,14 +1083,9 @@ Parámetros:
 ```text
 Solicitudes totales: 50000
 Concurrencia: 50
-Endpoint: /stress
 ```
 
----
-
 ## Resultados
-
-Resultados obtenidos:
 
 ```text
 Complete requests: 50000
@@ -839,7 +1095,7 @@ Requests per second: 4664.76
 Time taken for tests: 10.719 segundos
 ```
 
-Durante la prueba Nginx produjo respuestas:
+Nginx produjo:
 
 ```text
 HTTP 503
@@ -851,20 +1107,20 @@ Prometheus registró aproximadamente:
 629.59 solicitudes por segundo
 ```
 
-El umbral configurado en N8N fue:
+Umbral utilizado:
 
 ```text
 20 solicitudes por segundo
 ```
 
-La cadena de detección fue:
+Cadena de detección:
 
 ```text
 ApacheBench
      ↓
 Nginx
      ↓
-nginx-exporter
+Nginx Exporter
      ↓
 Prometheus
      ↓
@@ -874,8 +1130,6 @@ Groq
      ↓
 Telegram
 ```
-
-La alerta automática llegó correctamente al bot de Telegram.
 
 Resultado:
 
@@ -889,55 +1143,34 @@ ESCENARIO 1 COMPLETADO
 
 ## Objetivo
 
-Superar el máximo de conexiones simultáneas permitido por MySQL y provocar el error:
+Superar el máximo de conexiones simultáneas permitido por MySQL y provocar:
 
 ```text
 1040 Too many connections
 ```
 
----
-
 ## Estado inicial
-
-El servidor MySQL tenía:
 
 ```text
 max_connections = 151
-```
-
-Antes de la prueba:
-
-```text
 Connection_errors_max_connections = 0
 ```
 
----
+## Prueba
 
-## Prueba realizada
-
-Se utilizó:
-
-```text
-mysqlslap
-```
-
-con:
+Se utilizó `mysqlslap` con:
 
 ```text
 220 clientes concurrentes
 ```
 
-La consulta utilizada fue:
+y la consulta:
 
 ```sql
 SELECT SLEEP(10);
 ```
 
-El objetivo de `SLEEP(10)` fue mantener las conexiones abiertas durante un periodo suficiente para superar el límite de conexiones simultáneas.
-
----
-
-## Resultado del benchmark
+## Resultados
 
 Durante la prueba se observaron múltiples mensajes:
 
@@ -945,55 +1178,39 @@ Durante la prueba se observaron múltiples mensajes:
 mysqlslap: Error when connecting to server: 1040 Too many connections
 ```
 
-El benchmark utilizó:
+Resultados:
 
 ```text
 Number of clients running queries: 220
 Average time: 16.492 segundos
 ```
 
----
-
-## Estado de MySQL después de la prueba
-
-El contador:
+El contador alcanzó:
 
 ```text
-Connection_errors_max_connections
+Connection_errors_max_connections = 897
 ```
 
-alcanzó:
-
-```text
-897
-```
-
-Después de terminar la saturación:
+Después de la prueba:
 
 ```text
 Threads_connected = 1
 ```
 
-Esto confirmó que las conexiones temporales fueron liberadas y MySQL recuperó su funcionamiento normal.
-
----
-
-## Consulta Prometheus utilizada
+Consulta Prometheus:
 
 ```promql
 increase(mysql_global_status_connection_errors_total{error="max_connections"}[1m])
 ```
 
-Esta consulta permite detectar conexiones rechazadas nuevas dentro de la última ventana de un minuto.
-
-La cadena de monitoreo fue:
+Cadena de detección:
 
 ```text
 mysqlslap
      ↓
 MySQL
      ↓
-mysqld-exporter
+MySQL Exporter
      ↓
 Prometheus
      ↓
@@ -1003,8 +1220,6 @@ Groq
      ↓
 Telegram
 ```
-
-La alerta automática fue recibida correctamente.
 
 Resultado:
 
@@ -1018,23 +1233,17 @@ ESCENARIO 2 COMPLETADO
 
 ## Objetivo
 
-Simular la caída completa del servidor web Nginx y comprobar:
+Simular la caída completa del servidor web y comprobar:
 
 - Falla del health check.
 - Indisponibilidad HTTP.
 - Indisponibilidad HTTPS.
 - Cierre del puerto TCP 443.
-- Detección automática mediante Prometheus.
-- Procesamiento mediante N8N.
-- Análisis mediante Groq.
-- Notificación mediante Telegram.
-- Recuperación posterior del servicio.
-
----
+- Detección mediante Prometheus.
+- Alerta mediante Telegram.
+- Recuperación del servicio.
 
 ## Estado inicial
-
-Antes de ejecutar la caída:
 
 ```text
 nginx_up = 1
@@ -1043,74 +1252,33 @@ HTTPS /health = NutriAlianza OK HTTPS
 Puerto 443 = ABIERTO
 ```
 
----
-
 ## Provocar la caída
-
-Se ejecutó:
 
 ```bash
 docker compose stop nginx
 ```
 
----
-
 ## Estado durante el incidente
-
-Después de detener Nginx:
 
 ```text
 nginx_up = 0
+HTTP = Connection refused
+HTTPS = Connection refused
+Puerto 443 = CERRADO
 ```
 
-El health check HTTP produjo:
-
-```text
-Connection refused
-```
-
-El health check HTTPS produjo:
-
-```text
-Connection refused
-```
-
-La validación del puerto 443 mostró:
-
-```text
-PUERTO 443 CERRADO
-```
-
----
-
-## Consulta utilizada por N8N
+Consulta utilizada:
 
 ```promql
 max(nginx_up) or vector(0)
 ```
 
-En condiciones normales:
-
-```text
-1
-```
-
-Durante la caída:
-
-```text
-0
-```
-
----
-
-## Alerta automática
-
-La cadena de detección fue:
+Cadena de detección:
 
 ```text
 Nginx detenido
       ↓
-nginx-exporter
+Nginx Exporter
       ↓
 Prometheus
       ↓
@@ -1121,25 +1289,13 @@ Groq
 Telegram
 ```
 
-Telegram recibió correctamente una alerta de:
-
-```text
-Caída del servicio web Nginx
-```
-
-con severidad alta, explicación del incidente, impacto y recomendaciones técnicas.
-
----
-
 ## Recuperación
-
-El servicio se restauró mediante:
 
 ```bash
 docker compose start nginx
 ```
 
-Después de iniciar nuevamente Nginx:
+Después:
 
 ```text
 HTTP /health = NutriAlianza OK
@@ -1147,20 +1303,10 @@ HTTPS /health = NutriAlianza OK HTTPS
 nginx_up = 1
 ```
 
-La secuencia completa observada fue:
+Secuencia completa:
 
 ```text
 1 → 0 → 1
-```
-
-Esto representa:
-
-```text
-Servicio saludable
-        ↓
-Servicio caído
-        ↓
-Servicio recuperado
 ```
 
 Resultado:
@@ -1173,7 +1319,7 @@ ESCENARIO 3 COMPLETADO
 
 # Evidencias
 
-Las evidencias técnicas y académicas del proyecto están almacenadas en:
+Las evidencias técnicas y académicas están almacenadas en:
 
 ```text
 evidencias/
@@ -1188,7 +1334,7 @@ escenario-02-saturacion-conexiones-mysql.pdf
 escenario-03-caida-servicio-nginx.pdf
 ```
 
-Los documentos incluyen:
+Los documentos contienen:
 
 - Procedimiento realizado.
 - Configuración utilizada.
@@ -1196,45 +1342,41 @@ Los documentos incluyen:
 - Métricas observadas.
 - Parámetros utilizados.
 - Resultados numéricos.
-- Errores producidos durante las pruebas.
-- Capturas de Prometheus.
-- Capturas de N8N.
-- Alertas recibidas en Telegram.
+- Ejecución de N8N.
+- Alertas de Telegram.
 - Interpretación técnica.
-- Recuperación de los servicios.
+- Recuperación.
 - Conclusiones.
 
 ---
 
 # Seguridad
 
-El proyecto utiliza diferentes medidas para evitar exposición innecesaria de credenciales y mejorar la seguridad del entorno.
-
-Entre ellas:
+El proyecto contempla:
 
 - Variables privadas almacenadas mediante `.env`.
-- `.env` excluido del repositorio mediante `.gitignore`.
+- `.env` excluido mediante `.gitignore`.
 - Tokens no almacenados directamente en workflows N8N.
-- Contraseñas no almacenadas directamente dentro del README.
+- Contraseñas no almacenadas directamente en el README.
 - UFW instalado.
 - Fail2ban instalado.
-- Servicios separados mediante la red interna de Docker.
+- Servicios conectados mediante red interna Docker.
 - Usuario independiente para MySQL Exporter.
 - HTTPS habilitado en Nginx.
-- Certificado SSL utilizado exclusivamente para el laboratorio.
-- Archivos de respaldo `*.bak` excluidos del repositorio.
+- Certificado SSL local.
+- Archivos `*.bak` excluidos del repositorio.
 
 ---
 
 # Detener el ambiente sin eliminar información
 
-Para detener temporalmente los servicios:
+Detener temporalmente:
 
 ```bash
 docker compose stop
 ```
 
-Para iniciarlos nuevamente:
+Iniciar nuevamente:
 
 ```bash
 docker compose start
@@ -1246,7 +1388,7 @@ Consultar estado:
 docker compose ps
 ```
 
-> Los volúmenes Docker contienen información persistente utilizada por servicios como MySQL, N8N y Grafana.
+> Los volúmenes Docker contienen información persistente de servicios como MySQL, N8N y Grafana.
 
 ---
 
@@ -1258,23 +1400,17 @@ docker compose ps
 docker compose ps
 ```
 
----
-
 ## Nginx HTTP
 
 ```bash
 curl http://localhost/health
 ```
 
----
-
 ## Nginx HTTPS
 
 ```bash
 curl -k https://localhost/health
 ```
-
----
 
 ## Prometheus - Nginx
 
@@ -1283,8 +1419,6 @@ curl -sG http://localhost:9090/api/v1/query \
   --data-urlencode 'query=nginx_up'
 ```
 
----
-
 ## Prometheus - MySQL
 
 ```bash
@@ -1292,15 +1426,11 @@ curl -sG http://localhost:9090/api/v1/query \
   --data-urlencode 'query=mysql_up'
 ```
 
----
-
 ## Nginx Exporter
 
 ```bash
 curl -s http://localhost:9113/metrics | grep "^nginx_up "
 ```
-
----
 
 ## MySQL Exporter
 
@@ -1308,60 +1438,55 @@ curl -s http://localhost:9113/metrics | grep "^nginx_up "
 curl -s http://localhost:9104/metrics | grep "^mysql_up "
 ```
 
----
-
 ## Loki
 
 ```bash
 curl http://localhost:3100/ready
 ```
 
----
+## Base de datos
 
-# Resultado general de los escenarios obligatorios
-
-| Escenario | Estado |
-|---|---|
-| Escenario 1 - Saturación HTTP Nginx | Completado |
-| Escenario 2 - Saturación de conexiones MySQL | Completado |
-| Escenario 3 - Caída del servicio web Nginx | Completado |
-
-Los tres escenarios permitieron comprobar la cadena completa de automatización:
-
-```text
-Incidente
-    ↓
-Servicio afectado
-    ↓
-Exporter
-    ↓
-Prometheus
-    ↓
-N8N
-    ↓
-Groq
-    ↓
-Telegram
+```bash
+docker compose exec mysql mysql \
+  -u"$MYSQL_USER" \
+  -p"$MYSQL_PASSWORD" \
+  "$MYSQL_DATABASE" \
+  -e "SELECT COUNT(*) AS total_formulas, MIN(id) AS primer_id, MAX(id) AS ultimo_id FROM formulas; SELECT COUNT(*) AS total_inventario FROM inventario;"
 ```
 
-El sistema demostró capacidad para:
+---
 
-- Supervisar el estado de servicios.
-- Detectar incidentes.
-- Identificar condiciones anormales.
-- Procesar métricas.
-- Generar contexto técnico.
-- Utilizar inteligencia artificial para analizar incidentes.
-- Enviar alertas automáticas.
-- Detectar la recuperación de los servicios.
+# Resultado general
+
+| Componente / prueba | Estado |
+|---|---|
+| Docker Compose | Completado |
+| Nginx HTTP/HTTPS | Completado |
+| MySQL | Completado |
+| Base de 335.000 fórmulas | Completado |
+| Prometheus | Completado |
+| Node Exporter | Completado |
+| Nginx Exporter | Completado |
+| MySQL Exporter | Completado |
+| Filebeat | Completado |
+| Logstash | Completado |
+| Loki | Completado |
+| Nginx logs → Loki | Completado |
+| MySQL slow queries → Loki | Completado |
+| N8N + Groq + Telegram | Completado |
+| Grafana | Implementado |
+| Escenario 1 | Completado |
+| Escenario 2 | Completado |
+| Escenario 3 | Completado |
+| README reproducible | Completado |
 
 ---
 
-# Historial de implementación de escenarios
+# Historial de implementación
 
-El desarrollo de los escenarios fue organizado mediante Git para mantener trazabilidad de las modificaciones.
+El desarrollo fue organizado mediante ramas y commits de Git para conservar trazabilidad.
 
-Se utilizaron commits separados para:
+Entre los cambios principales se encuentran:
 
 ```text
 Infraestructura de monitoreo para escenarios 1 y 2
@@ -1370,26 +1495,31 @@ Escenario 2 - Saturación de conexiones MySQL
 Infraestructura HTTPS para escenario 3
 Escenario 3 - Caída del servicio web Nginx
 Evidencias de los escenarios obligatorios
+Integra logs de Nginx y MySQL con Filebeat y Loki
+Agrega base reproducible con 335000 formulas
+Actualiza README con base de datos final
 ```
-
-Esto permite identificar la evolución técnica del proyecto y mantener un historial organizado de los cambios realizados.
 
 ---
 
 # Paquete de acceso para auditoría
 
-El repositorio contiene los elementos necesarios para reproducir y revisar el proyecto:
+El repositorio contiene:
 
 - `docker-compose.yml`
 - `.env.example`
 - `.gitignore`
 - `README.md`
 - Configuración de Nginx.
-- Certificado local utilizado por Nginx.
+- Certificado local de Nginx.
 - Configuración de MySQL.
+- SQL de inicialización.
+- Seed de 335.000 fórmulas.
+- `mysql/nutrialianza_db.sql`.
 - Configuración de Prometheus.
-- Configuración de Loki.
 - Configuración de Filebeat.
+- Configuración de Logstash.
+- Configuración de Loki.
 - Workflows N8N exportados.
 - Dashboard Grafana exportado.
 - Evidencias de los escenarios obligatorios.
@@ -1402,83 +1532,47 @@ Las credenciales privadas de:
 - N8N.
 - Grafana.
 
-no están incluidas directamente en el repositorio.
+no forman parte directamente del repositorio.
 
 ---
 
-# Verificaciones pendientes antes de la entrega final
+# Pendientes de cierre académico
 
-Aunque los tres escenarios obligatorios ya fueron completados, existen elementos que deben verificarse antes de considerar finalizado el proyecto completo.
+La infraestructura técnica principal y los tres escenarios obligatorios se encuentran completados.
 
-## Base de datos de NutriAlianza
+Antes de la entrega final quedan principalmente actividades de cierre:
 
-La especificación académica establece una base de datos con aproximadamente:
-
-```text
-335,000 registros de fórmulas
-```
-
-La versión del script SQL incluida en el repositorio debe comprobarse antes de la entrega final para garantizar que contiene la cantidad y estructura de datos solicitadas.
-
-La validación puede realizarse mediante:
-
-```bash
-docker compose exec mysql mysql \
-  -uroot \
-  -p"$MYSQL_ROOT_PASSWORD" \
-  -e "USE nutrialianza_db; SELECT COUNT(*) FROM formulas;"
-```
-
----
-
-## Integración Filebeat y Loki
-
-Debe verificarse que la configuración final de:
-
-```text
-filebeat/filebeat.yml
-```
-
-envíe los logs al componente de almacenamiento de logs definido por la arquitectura final.
-
-También debe comprobarse que Loki pueda recibir y consultar dichos registros.
-
----
-
-## Informe de ingeniería
-
-Debe completarse el informe técnico final con:
-
-- Marco teórico.
-- Arquitectura.
-- Configuración.
-- Escenarios.
-- Resultados.
-- Análisis.
-- Evidencias.
-- Conclusiones.
-- Respuestas de análisis teórico requeridas por el proyecto.
-
----
-
-## Presentación ejecutiva
-
-Debe prepararse la presentación final y la demostración interactiva del sistema.
+- Verificación final del dashboard Grafana.
+- Evidencias finales de UFW y Fail2ban.
+- Informe de ingeniería final.
+- Diagrama definitivo de arquitectura.
+- Muestreo de las alertas de Groq.
+- Análisis teórico solicitado por el curso.
+- Conclusiones individuales.
+- Referencias bibliográficas.
+- Presentación ejecutiva.
+- Ensayo de la demo interactiva.
 
 ---
 
 # Conclusión
 
-El sistema de monitoreo inteligente de **NutriAlianza S.A.** integra infraestructura basada en Docker, métricas de Prometheus, automatización mediante N8N, análisis mediante Groq y notificaciones en Telegram.
+El sistema de monitoreo inteligente de **NutriAlianza S.A.** integra infraestructura basada en Docker, métricas recopiladas por Prometheus, logs almacenados en Loki, automatización mediante N8N, análisis mediante Groq y notificaciones en Telegram.
 
-Los tres escenarios obligatorios fueron ejecutados correctamente y permitieron demostrar el comportamiento del sistema frente a:
+Los tres escenarios obligatorios fueron ejecutados correctamente y permitieron demostrar el comportamiento de la solución frente a:
 
 - Saturación HTTP.
-- Saturación de conexiones de base de datos.
+- Saturación de conexiones MySQL.
 - Caída completa del servidor web.
 
-Los resultados comprobaron que la solución no se limita a almacenar métricas, sino que permite detectar eventos operativos y convertirlos en alertas técnicas comprensibles y accionables.
+También se validó la canalización de logs de Nginx y MySQL mediante:
 
-La infraestructura también incorpora Grafana para visualización, HTTPS para Nginx y mecanismos básicos de seguridad mediante variables de entorno, UFW y Fail2ban.
+```text
+Filebeat → Logstash → Loki
+```
 
-El proyecto queda preparado para completar las verificaciones finales de datos, logs, documentación técnica y presentación ejecutiva antes de la entrega definitiva.
+La base de datos de NutriAlianza fue configurada con **335.000 registros de fórmulas**, cumpliendo el volumen solicitado para la tabla principal del proyecto.
+
+La solución permite detectar eventos operativos, recopilar evidencia técnica y convertir métricas y registros en alertas comprensibles y accionables mediante inteligencia artificial.
+
+El proyecto queda preparado para el cierre documental, la validación final de Grafana y hardening, la elaboración del informe de ingeniería y la presentación ejecutiva.
